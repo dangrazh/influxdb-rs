@@ -1,13 +1,19 @@
-
-use influxdb_rs::{Client, Point, point, points, Value, Precision};
-use url::Url;
-use std::borrow::Cow;
 use chrono::prelude::*;
+use influxdb_rs::{point, points, Client, Point, Precision, Value};
+use std::borrow::Cow;
+use url::Url;
 
 #[tokio::main]
 async fn main() {
     // default with "http://127.0.0.1:8086", db with "test"
-    let client = Client::new(Url::parse("http://localhost:8086").unwrap(), "test_bucket", "test_org", "0123456789").await.unwrap();
+    let client = Client::new(
+        Url::parse("http://localhost:8086").unwrap(),
+        "test_bucket",
+        "test_org",
+        "0123456789",
+    )
+    .await
+    .unwrap();
 
     let point = point!("test1");
     let point = point
@@ -28,36 +34,37 @@ async fn main() {
 
     // if Precision is None, the default is second
     // Multiple write
-    let result = client.write_points(points, Some(Precision::Seconds), None).await;
+    let result = client
+        .write_points(points, Some(Precision::Seconds), None)
+        .await;
 
-    if result.is_err(){
+    if result.is_err() {
         // DO SOMETHING
     }
 
     let now = Utc::now();
 
     // NOTE: convert time from timstamp_nanos() due to to_rfc3339() doesn't convert nicely with GOLANG
-    let flux_query = format!("from(bucket: \"test_bucket\") 
+    let flux_query = format!(
+        "from(bucket: \"test_bucket\") 
     |> range(start: time(v: {:?}))
     |> filter(fn: (r) => r._measurement == \"test4\")
-    |> yield()", now.timestamp_nanos());
+    |> yield()",
+        now.timestamp_nanos_opt().unwrap()
+    );
 
-
-    let query = influxdb_rs::data_model::query::ReadQuery{
+    let query = influxdb_rs::data_model::query::ReadQuery {
         r#extern: None,
         query: flux_query,
         r#type: None,
         dialect: None,
         now: None,
-
     };
 
     let result = client.query(Some(query)).await;
 
-    if result.is_ok(){
+    if result.is_ok() {
         // Prints Response Results in String
         println!("{:?}", result.unwrap().text().await);
-
     }
-
 }
